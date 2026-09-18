@@ -53,14 +53,14 @@ jobs:
       - name: Setup environment variables (.env)
         run: |
           if [ ! -f .env.example ]; then
-            echo "GEMINI_API_KEY=" > .env.example
+            echo "GEMINI_API_KEY=DEFAULT_API_KEY" > .env.example
           fi
           if [ ! -f .env ]; then
             cp .env.example .env
           fi
           # If repository secret GEMINI_API_KEY is configured, inject it into .env
           if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
-            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
           fi
 
       - name: Grant execute permission for gradlew
