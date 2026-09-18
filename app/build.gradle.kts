@@ -23,6 +23,25 @@ android {
     versionName = "1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // Safely resolve GEMINI_API_KEY so build never fails with syntax error if secret is unset or empty
+    val envFile = rootProject.file(".env")
+    val exampleFile = rootProject.file(".env.example")
+    fun extractKey(file: java.io.File): String? {
+      if (!file.exists()) return null
+      return file.readLines()
+        .firstOrNull { it.trim().startsWith("GEMINI_API_KEY=") }
+        ?.substringAfter("GEMINI_API_KEY=")
+        ?.trim()
+        ?.removeSurrounding("\"")
+        ?.removeSurrounding("'")
+    }
+    val rawGeminiKey = System.getenv("GEMINI_API_KEY")
+      ?: extractKey(envFile)
+      ?: extractKey(exampleFile)
+      ?: "DEFAULT_API_KEY"
+    val resolvedGeminiKey = if (rawGeminiKey.isBlank()) "DEFAULT_API_KEY" else rawGeminiKey
+    buildConfigField("String", "GEMINI_API_KEY", "\"$resolvedGeminiKey\"")
   }
 
   signingConfigs {
@@ -83,6 +102,7 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  ignoreList.add("GEMINI_API_KEY")
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
