@@ -761,8 +761,7 @@ class MainActivity : ComponentActivity() {
                                 storyMakerPickerLauncher.launch(chooser)
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error launching photo picker for Story Maker", e)
-                                storyEditorBitmapState.value = BitmapFactory.decodeResource(resources, com.example.R.drawable.sample_portrait)
-                                isStoryMakerOpenState.value = true
+                                Toast.makeText(this@MainActivity, "Could not open photo picker", Toast.LENGTH_SHORT).show()
                             }
                         },
                         onGallerySelected = {
@@ -824,29 +823,32 @@ class MainActivity : ComponentActivity() {
                     // Native Story Maker & Photo Editor Screen
                     if (isStoryMakerOpenState.value) {
                         val initialBitmap = storyEditorBitmapState.value
-                            ?: BitmapFactory.decodeResource(resources, com.example.R.drawable.sample_portrait)
-                        StoryEditorScreen(
-                            initialBitmap = initialBitmap,
-                            onBack = {
-                                isStoryMakerOpenState.value = false
-                                filePathCallback?.onReceiveValue(null)
-                                filePathCallback = null
-                            },
-                            onDone = { createdUri ->
-                                isStoryMakerOpenState.value = false
-                                if (filePathCallback != null) {
-                                    filePathCallback?.onReceiveValue(arrayOf(createdUri))
+                        if (initialBitmap != null) {
+                            StoryEditorScreen(
+                                initialBitmap = initialBitmap,
+                                onBack = {
+                                    isStoryMakerOpenState.value = false
+                                    filePathCallback?.onReceiveValue(null)
                                     filePathCallback = null
-                                } else {
-                                    Toast.makeText(this@MainActivity, "Photo ready! Attaching to spot...", Toast.LENGTH_SHORT).show()
-                                    ImageSaveUtil.launchShareIntent(this@MainActivity, createdUri)
+                                },
+                                onDone = { createdUri ->
+                                    isStoryMakerOpenState.value = false
+                                    if (filePathCallback != null) {
+                                        filePathCallback?.onReceiveValue(arrayOf(createdUri))
+                                        filePathCallback = null
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Photo ready! Attaching to spot...", Toast.LENGTH_SHORT).show()
+                                        ImageSaveUtil.launchShareIntent(this@MainActivity, createdUri)
+                                    }
+                                },
+                                onShareToThikana = { createdUri, destination ->
+                                    isStoryMakerOpenState.value = false
+                                    sharePhotoToThikana(createdUri, destination)
                                 }
-                            },
-                            onShareToThikana = { createdUri, destination ->
-                                isStoryMakerOpenState.value = false
-                                sharePhotoToThikana(createdUri, destination)
-                            }
-                        )
+                            )
+                        } else {
+                            isStoryMakerOpenState.value = false
+                        }
                     }
 
                     // Native CameraX Capture View (Story / Post / Collage)
@@ -1486,20 +1488,26 @@ class MainActivity : ComponentActivity() {
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
             if (result.resultCode != RESULT_OK || result.data == null) {
-                storyEditorBitmapState.value = BitmapFactory.decodeResource(resources, com.example.R.drawable.sample_portrait)
-                isStoryMakerOpenState.value = true
+                filePathCallback?.onReceiveValue(null)
+                filePathCallback = null
                 return@registerForActivityResult
             }
             val uri = result.data?.data ?: result.data?.clipData?.getItemAt(0)?.uri
             if (uri != null) {
                 lifecycleScope.launch {
                     val bitmap = withContext(Dispatchers.IO) { decodeGalleryBitmap(uri) }
-                    storyEditorBitmapState.value = bitmap ?: BitmapFactory.decodeResource(resources, com.example.R.drawable.sample_portrait)
-                    isStoryMakerOpenState.value = true
+                    if (bitmap != null) {
+                        storyEditorBitmapState.value = bitmap
+                        isStoryMakerOpenState.value = true
+                    } else {
+                        Toast.makeText(this@MainActivity, "Could not load image", Toast.LENGTH_SHORT).show()
+                        filePathCallback?.onReceiveValue(null)
+                        filePathCallback = null
+                    }
                 }
             } else {
-                storyEditorBitmapState.value = BitmapFactory.decodeResource(resources, com.example.R.drawable.sample_portrait)
-                isStoryMakerOpenState.value = true
+                filePathCallback?.onReceiveValue(null)
+                filePathCallback = null
             }
         }
 

@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -52,6 +53,7 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -83,7 +85,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import android.widget.Toast
 import com.example.storyeditor.model.FilterPreset
+import com.example.storyeditor.util.ImageProcessingUtils
 import com.example.ui.theme.InstagramStoryGradient
 import com.example.ui.theme.StudioCyan
 import com.example.ui.theme.StudioPink
@@ -165,6 +169,7 @@ fun SnapchatCameraView(
 
     val imageCapture = remember {
         ImageCapture.Builder()
+            .setTargetAspectRatio(AspectRatio.RATIO_16_9)
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .setFlashMode(flashMode)
             .build()
@@ -179,9 +184,11 @@ fun SnapchatCameraView(
                 cameraProviderRef = cameraProvider
                 cameraProvider.unbindAll()
 
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
+                val preview = Preview.Builder()
+                    .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                    .build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
 
                 val cameraSelector = CameraSelector.Builder()
                     .requireLensFacing(cameraLensFacing)
@@ -222,9 +229,22 @@ fun SnapchatCameraView(
                     (previewView.parent as? ViewGroup)?.removeView(previewView)
                     previewView
                 },
-                update = {
-                    // Update flash
+                update = { view ->
                     imageCapture.flashMode = flashMode
+                    if (selectedLiveLens == FilterPreset.ORIGINAL) {
+                        view.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
+                    } else {
+                        try {
+                            val cm = selectedLiveLens.getColorMatrix()
+                            val androidCm = android.graphics.ColorMatrix(cm.values)
+                            val paint = android.graphics.Paint().apply {
+                                colorFilter = android.graphics.ColorMatrixColorFilter(androidCm)
+                            }
+                            view.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, paint)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxSize()
@@ -300,21 +320,24 @@ fun SnapchatCameraView(
             }
         }
 
-        // Live Lens Color Overlay Tint
+        // Live Lens Color Overlay Tint fallback
         if (selectedLiveLens != FilterPreset.ORIGINAL) {
+            val tintColor = when (selectedLiveLens) {
+                FilterPreset.CYBER_NEON -> Color(0x3500E5FF)
+                FilterPreset.GOLDEN_HOUR -> Color(0x30FFA726)
+                FilterPreset.FILM_35MM -> Color(0x28FFE082)
+                FilterPreset.NOIR -> Color(0x60000000)
+                FilterPreset.PASTEL -> Color(0x30F48FB1)
+                FilterPreset.TEAL_ORANGE -> Color(0x3000B4D8)
+                FilterPreset.RETRO_90S -> Color(0x309C27B0)
+                FilterPreset.MOODY -> Color(0x381A237E)
+                FilterPreset.WARMTH -> Color(0x30FF6F00)
+                else -> Color.Transparent
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        when (selectedLiveLens) {
-                            FilterPreset.CYBER_NEON -> Color(0x3000E5FF)
-                            FilterPreset.GOLDEN_HOUR -> Color(0x28FFA726)
-                            FilterPreset.FILM_35MM -> Color(0x20FFE082)
-                            FilterPreset.NOIR -> Color(0x60000000)
-                            FilterPreset.PASTEL -> Color(0x25F48FB1)
-                            else -> Color.Transparent
-                        }
-                    )
+                    .background(tintColor)
             )
         }
 
@@ -669,6 +692,7 @@ fun SnapchatCameraView(
                                         context = context,
                                         imageCapture = imageCapture,
                                         lensFacing = cameraLensFacing,
+                                        selectedFilter = selectedLiveLens,
                                         onStart = { isCapturing = true },
                                         onSuccess = { bmp ->
                                             isCapturing = false
@@ -676,12 +700,7 @@ fun SnapchatCameraView(
                                         },
                                         onError = {
                                             isCapturing = false
-                                            // Fallback to sample portrait if physical capture fails
-                                            val fallback = BitmapFactory.decodeResource(
-                                                context.resources,
-                                                com.example.R.drawable.sample_portrait
-                                            )
-                                            if (fallback != null) onPhotoCaptured(fallback)
+                                            Toast.makeText(context, "Could not capture photo", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                 }
@@ -690,6 +709,7 @@ fun SnapchatCameraView(
                                     context = context,
                                     imageCapture = imageCapture,
                                     lensFacing = cameraLensFacing,
+                                    selectedFilter = selectedLiveLens,
                                     onStart = { isCapturing = true },
                                     onSuccess = { bmp ->
                                         isCapturing = false
@@ -697,11 +717,7 @@ fun SnapchatCameraView(
                                     },
                                     onError = {
                                         isCapturing = false
-                                        val fallback = BitmapFactory.decodeResource(
-                                            context.resources,
-                                            com.example.R.drawable.sample_portrait
-                                        )
-                                        if (fallback != null) onPhotoCaptured(fallback)
+                                        Toast.makeText(context, "Could not capture photo", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -729,30 +745,27 @@ fun SnapchatCameraView(
                     }
                 }
 
-                // Sample Preset Fast-Load Button
+                // Gallery Picker Button (Replaces sample image button)
                 Box(
                     modifier = Modifier
                         .size(54.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.2f))
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
                         .clickable {
-                            // Cycle through sample photos for immediate rich testing
-                            val sampleBmp = BitmapFactory.decodeResource(
-                                context.resources,
-                                com.example.R.drawable.sample_neon
-                            ) ?: BitmapFactory.decodeResource(
-                                context.resources,
-                                com.example.R.drawable.sample_portrait
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
-                            sampleBmp?.let { onPhotoCaptured(it) }
                         }
-                        .testTag("camera_sample_load_button"),
+                        .testTag("camera_gallery_button"),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("TRY", color = StudioCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Text("SAMPLE", color = Color.White, fontSize = 9.sp)
-                    }
+                    Icon(
+                        Icons.Default.PhotoLibrary,
+                        contentDescription = "Pick from Gallery",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }
@@ -763,6 +776,7 @@ private fun capturePhoto(
     context: Context,
     imageCapture: ImageCapture,
     lensFacing: Int,
+    selectedFilter: FilterPreset,
     onStart: () -> Unit,
     onSuccess: (Bitmap) -> Unit,
     onError: () -> Unit
@@ -791,6 +805,10 @@ private fun capturePhoto(
                         bitmap = Bitmap.createBitmap(
                             bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
                         )
+                    }
+                    // Apply the selected live filter to the captured photo
+                    if (selectedFilter != FilterPreset.ORIGINAL) {
+                        bitmap = ImageProcessingUtils.applyFilterToBitmap(bitmap, selectedFilter)
                     }
                     onSuccess(bitmap)
                 } else {

@@ -11,10 +11,47 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.storyeditor.model.AspectPreset
 import com.example.storyeditor.model.BackgroundCutoutMode
+import com.example.storyeditor.model.FilterPreset
 import java.io.File
 import java.io.FileOutputStream
 
 object ImageProcessingUtils {
+
+    fun applyFilterToBitmap(source: Bitmap, preset: FilterPreset): Bitmap {
+        if (preset == FilterPreset.ORIGINAL) return source
+        return try {
+            val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(output)
+            val cm = preset.getColorMatrix()
+            val paint = Paint().apply {
+                colorFilter = android.graphics.ColorMatrixColorFilter(cm.values)
+            }
+            canvas.drawBitmap(source, 0f, 0f, paint)
+            output
+        } catch (e: Exception) {
+            e.printStackTrace()
+            source
+        }
+    }
+
+    fun cropCustom(source: Bitmap, leftNorm: Float, topNorm: Float, rightNorm: Float, bottomNorm: Float): Bitmap {
+        return try {
+            val srcW = source.width
+            val srcH = source.height
+            val l = (leftNorm.coerceIn(0f, 1f) * srcW).toInt()
+            val t = (topNorm.coerceIn(0f, 1f) * srcH).toInt()
+            val r = (rightNorm.coerceIn(0f, 1f) * srcW).toInt()
+            val b = (bottomNorm.coerceIn(0f, 1f) * srcH).toInt()
+            val cropW = (r - l).coerceAtLeast(10).coerceAtMost(srcW)
+            val cropH = (b - t).coerceAtLeast(10).coerceAtMost(srcH)
+            val startX = l.coerceIn(0, (srcW - cropW).coerceAtLeast(0))
+            val startY = t.coerceIn(0, (srcH - cropH).coerceAtLeast(0))
+            Bitmap.createBitmap(source, startX, startY, cropW, cropH)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            source
+        }
+    }
 
     fun cropToAspect(source: Bitmap, preset: AspectPreset): Bitmap {
         val targetRatio = preset.ratio

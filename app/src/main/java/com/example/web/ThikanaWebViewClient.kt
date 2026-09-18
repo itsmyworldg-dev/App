@@ -539,20 +539,19 @@ class ThikanaWebViewClient(
                     }
                 }, true);
 
-                // 7. Observer to sync upload chooser sheet state with native Compose plus button and inject dynamic camera button
+                // 7. Observer to sync upload chooser sheet state with native Compose plus button and inject dynamic camera card
                 var ensureChooserCameraBtn = function() {
                     var chooser = document.getElementById('uploadChooserOverlay');
                     if (!chooser) return;
-                    var container = chooser.querySelector('.upload-choice') || chooser.querySelector('#uploadChooserBody') || chooser.querySelector('.detail');
-                    if (container && !document.getElementById('uploadChooserCameraBtn')) {
-                        var btn = document.createElement('div');
-                        btn.id = 'uploadChooserCameraBtn';
-                        btn.className = 'upload-choice-camera-btn';
-                        btn.title = 'Camera & Photo Editor';
-                        btn.setAttribute('role', 'button');
-                        btn.setAttribute('aria-label', 'Open Camera');
-                        btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
-                        btn.addEventListener('click', function(e) {
+                    var container = chooser.querySelector('.upload-choice') || chooser.querySelector('#uploadChooserBody');
+                    if (container && !document.getElementById('uploadChoiceCameraCard')) {
+                        var card = document.createElement('div');
+                        card.id = 'uploadChoiceCameraCard';
+                        card.className = 'upload-choice-card upload-choice-camera-card';
+                        card.setAttribute('role', 'button');
+                        card.style.cursor = 'pointer';
+                        card.innerHTML = '<div class="upload-choice-icon" style="background: linear-gradient(135deg, #FF2A85 0%, #8A2BE2 100%); color: #fff; border-radius: 12px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 12px rgba(255, 42, 133, 0.35);">📸</div><div class="upload-choice-text"><b>Camera & Story Maker</b><span>Capture with live filters, lenses & edit your photo</span></div>';
+                        card.addEventListener('click', function(e) {
                             if (e) { e.preventDefault(); e.stopPropagation(); }
                             if (typeof closeUploadChooser === 'function') {
                                 closeUploadChooser();
@@ -566,7 +565,7 @@ class ThikanaWebViewClient(
                                 window.AndroidNativeAuth.openNativeCamera('post');
                             }
                         }, true);
-                        container.appendChild(btn);
+                        container.appendChild(card);
                     }
                 };
 
