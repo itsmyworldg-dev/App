@@ -603,11 +603,16 @@ class MainActivity : ComponentActivity() {
                     val tappableBottom = WindowInsets.tappableElement.asPaddingValues().calculateBottomPadding()
                     val hasSystemDock = tappableBottom > 0.dp || navBarBottom >= 32.dp
 
+                    // Extra breathing room for system dock phones (approx 19dp == half a centimeter)
+                    // so that the dock, discover tiles, and action sheets float comfortably above the 3-button navigation bar.
+                    val systemDockExtraLift = if (hasSystemDock) 19.dp else 0.dp
+                    val effectiveNavBarInset = if (hasSystemDock) navBarBottom + systemDockExtraLift else 0.dp
+
                     // Keep the web app's .navbar lifted clear of a real 3-button/2-button
                     // system nav bar (see updateSystemNavInsetCss doc above) — 0 on
                     // gesture-nav devices, matching plain-web/PWA behavior exactly.
                     androidx.compose.runtime.LaunchedEffect(navBarBottom, hasSystemDock) {
-                        updateSystemNavInsetCss(if (hasSystemDock) navBarBottom else 0.dp)
+                        updateSystemNavInsetCss(effectiveNavBarInset)
                     }
 
                     // Fast, zero-gap keyboard layout:
@@ -616,14 +621,14 @@ class MainActivity : ComponentActivity() {
                     // the chat input row sits snugly and directly above the keyboard with no awkward gap!
                     // When the keyboard is closed:
                     // If bottom nav dock is hidden (chat screen, overlays, navigation) AND the device has a real
-                    // system dock (3-button/2-button nav), pad by navBarBottom so content sits cleanly above it.
+                    // system dock (3-button/2-button nav), pad by navBarBottom + systemDockExtraLift so content sits cleanly above it.
                     // If the device is on full gesture navigation (no system dock), there's nothing to clear -
                     // let content run all the way to the physical bottom edge of the screen.
                     // If bottom dock is visible (feed, discover, etc.), dock handles its own padding, so bottom is 0.dp.
                     val bottomInset = if (imeBottom > 0.dp) {
                         imeBottom
                     } else if ((!isBottomNavVisibleState.value || isNavActive) && hasSystemDock) {
-                        navBarBottom
+                        navBarBottom + systemDockExtraLift
                     } else {
                         0.dp
                     }
@@ -676,7 +681,7 @@ class MainActivity : ComponentActivity() {
                         onOpenNativeCamera = { mode ->
                             openNativeCamera(mode)
                         },
-                        navBarBottomInset = navBarBottom,
+                        navBarBottomInset = effectiveNavBarInset,
                         onDockHeightChanged = { heightDp ->
                             updateDockHeightCss(heightDp)
                         },
