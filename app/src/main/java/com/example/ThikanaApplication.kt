@@ -49,13 +49,10 @@ class ThikanaApplication : Application() {
                 Os.setenv("MESA_NO_ERROR", "1", true)
                 Os.setenv("MESA_SILENT", "1", true)
                 Os.setenv("MESA_VERBOSE", "0", true)
-                Os.setenv("MESA_GL_VERSION_OVERRIDE", "", true)
                 Os.setenv("EGL_LOG_LEVEL", "fatal", true)
                 Os.setenv("LIBGL_DEBUG", "quiet", true)
                 Os.setenv("VK_LOADER_DEBUG", "none", true)
                 Os.setenv("LIBGL_SHOW_FPS", "0", true)
-                Os.setenv("DRI_NO_DRIVER", "1", true)
-                Os.setenv("MESA_LOADER_DRIVER_OVERRIDE", "swrast", true)
 
                 System.setProperty("mesa.debug", "0")
                 System.setProperty("egl.log_level", "fatal")
@@ -78,22 +75,21 @@ class ThikanaApplication : Application() {
                 }
             }
 
-            // 3. Pre-create and fix legitimate Chromium / WebView disk cache directory hierarchies
+            // 3. Pre-create and fix legitimate Chromium / WebView disk cache directory hierarchies.
+            // Chromium SimpleCache expects:
+            //   - "HTTP Cache" to be a flat SimpleCache directory (or with its expected subfolders)
+            //   - "HTTP Cache/Code Cache/js" and "HTTP Cache/Code Cache/wasm" to exist or not have dangling indexes
+            //   - "Code Cache/js" and "Code Cache/wasm" to exist
             try {
                 val cacheBase = context.cacheDir
-
-                // If HTTP Cache contains an invalid nested "Code Cache" directory,
-                // remove it so Chromium SimpleCache can maintain its flat index cleanly without errors.
-                val httpCacheDir = File(cacheBase, "WebView/Default/HTTP Cache")
-                val bogusCodeCacheInHttp = File(httpCacheDir, "Code Cache")
-                if (bogusCodeCacheInHttp.exists()) {
-                    bogusCodeCacheInHttp.deleteRecursively()
-                }
 
                 val directories = listOf(
                     File(cacheBase, "WebView"),
                     File(cacheBase, "WebView/Default"),
                     File(cacheBase, "WebView/Default/HTTP Cache"),
+                    File(cacheBase, "WebView/Default/HTTP Cache/Code Cache"),
+                    File(cacheBase, "WebView/Default/HTTP Cache/Code Cache/js"),
+                    File(cacheBase, "WebView/Default/HTTP Cache/Code Cache/wasm"),
                     File(cacheBase, "WebView/Default/Code Cache"),
                     File(cacheBase, "WebView/Default/Code Cache/js"),
                     File(cacheBase, "WebView/Default/Code Cache/wasm"),
