@@ -1548,40 +1548,38 @@ class ThikanaWebViewClient(
                safe-area handling can leave it sitting partly underneath a real
                3-button/2-button system nav bar. MainActivity measures that real inset
                natively and pushes it in as --android-sys-nav-inset (0 on gesture-nav
-               devices, where there's nothing to clear). Lifting .navbar with transform
-               rather than touching its padding/height keeps its internal layout exactly
-               as the plain web already has it. */
+               devices, where there's nothing to clear).
+
+               CRITICAL FIX: We MUST NOT use `transform: translateY(...)` to lift .navbar.
+               In CSS flex layout (.screen is display: flex, flex-direction: column),
+               transform only visually shifts pixels without adjusting the DOM flex layout box.
+               Because .mapwrap is a flex sibling above .navbar with flex: 1, translating
+               .navbar upwards caused it to slide directly over the discover place cards
+               (.discover-carousel-wrap) and floating map buttons, overlapping them severely.
+
+               Instead, adjusting `margin-bottom` keeps .navbar in document flow:
+               it raises .navbar above the 3-button navigation bar while naturally
+               reducing .mapwrap's available height by the exact same amount. The discover carousel,
+               place cards, locate button, and now-playing music bar automatically stay
+               cleanly above .navbar with their intended spacing and zero overlap. */
             .navbar {
-                transform: translateY(calc(-1 * var(--android-sys-nav-inset, 0px))) !important;
+                transform: none !important;
+                margin-bottom: calc(14px + var(--android-sys-nav-inset, 0px)) !important;
             }
-            /* .navbar is the web app's own (browser/PWA) bottom tab bar. There is no
-               native floating dock anymore (that native Compose dock was removed) — the web's
-               own dock is shown as-is, exactly like it is in a browser or installed PWA,
-               so no visibility/height override is applied to it here. Its own CSS/JS
-               already handles hiding it during an open chat thread, full-screen nav, etc.
-               --native-dock-height stays pinned at 0 by MainActivity, so every
-               var(--native-dock-height, ...) fallback below resolves the same way it
-               already does on plain web. */
-            /* NOTE: the discover carousel ("thikana" place cards) and its
-               floating locate/trip-plan/minimize buttons are NOT overridden
-               here anymore — styles.css itself now adds
-               var(--native-dock-height, 0px) into their bottom/padding
-               calc(), so they clear the real dock height dynamically without
-               needing a second, easily-stale copy of the same numbers here. */
+            .music-bar {
+                transform: none !important;
+            }
             /* Place detail modal bottom padding for clean scrolling on all devices */
             .detail {
-                padding-bottom: 28px !important;
+                padding-bottom: calc(28px + var(--android-sys-nav-inset, 0px)) !important;
             }
             .detail-actions {
-                padding-bottom: 8px !important;
+                padding-bottom: calc(8px + var(--android-sys-nav-inset, 0px)) !important;
             }
-            /* Ensure bottom sheets are never blocked by the web's own dock.
-               16px/8px are the original breathing-room guesses kept as the
-               *extra* gap on top of the dock's real height, instead of being
-               the whole clearance by themselves. */
+            /* Ensure bottom sheets are never blocked by the system nav bar */
             #uploadChooserOverlay .detail,
             #uploadChooserBody {
-                padding-bottom: calc(var(--native-dock-height, 84px) + 16px) !important;
+                padding-bottom: calc(var(--android-sys-nav-inset, 0px) + 28px) !important;
             }
             /* Dynamic circular camera button inside upload chooser */
             #uploadChooserBody .upload-choice {
@@ -1625,11 +1623,11 @@ class ThikanaWebViewClient(
             #shareOverlay .detail,
             #commentsOverlay .detail,
             #notifOverlay .detail {
-                padding-bottom: calc(var(--native-dock-height, 84px) + 16px) !important;
+                padding-bottom: calc(var(--android-sys-nav-inset, 0px) + 28px) !important;
             }
             /* Messages inbox list spacing above dock */
             #messagesOverlay.msg-inbox-open #messagesBody {
-                padding-bottom: calc(var(--native-dock-height, 84px) + 8px) !important;
+                padding-bottom: calc(var(--android-sys-nav-inset, 0px) + 14px) !important;
             }
             /* Inside chat threads: ensure message composer sits snugly directly above keyboard with zero extra gap */
             .msg-input-row {

@@ -598,8 +598,10 @@ class MainActivity : ComponentActivity() {
                     // the bottom inset is just a thin swipe-back reservation with no tappable bar at all).
                     // This is the officially documented way to distinguish the two: in 3/2-button mode the
                     // tappable inset equals the navigation bar inset; in gesture mode it's zero.
+                    // Additionally check navBarBottom >= 32.dp to reliably cover OEM skins where tappableElement
+                    // returns 0 despite 3-button navigation being active.
                     val tappableBottom = WindowInsets.tappableElement.asPaddingValues().calculateBottomPadding()
-                    val hasSystemDock = tappableBottom > 0.dp
+                    val hasSystemDock = tappableBottom > 0.dp || navBarBottom >= 32.dp
 
                     // Keep the web app's .navbar lifted clear of a real 3-button/2-button
                     // system nav bar (see updateSystemNavInsetCss doc above) — 0 on
