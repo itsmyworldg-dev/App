@@ -6,25 +6,23 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,14 +31,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsNone
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,28 +48,33 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.ui.theme.InstagramStoryGradient
 import com.example.ui.theme.ThikanaLine
 import com.example.ui.theme.ThikanaPaper
-import com.example.ui.theme.ThikanaPaperDim
 import com.example.ui.theme.ThikanaPink
 import com.example.ui.theme.ThikanaViolet
 
 /**
- * Creates a shimmering linear gradient brush with warm Thikana brand tones.
+ * Creates a shimmering linear gradient brush with warm Thikana tones for skeleton placeholders.
  */
 @Composable
 fun rememberShimmerBrush(
     targetValue: Float = 1400f,
     colors: List<Color> = listOf(
-        Color(0xFFF1EAE2),
-        Color(0xFFFFF7F2),
-        Color(0xFFFFECF1),
-        Color(0xFFF1EAE2)
+        Color(0xFFEDE8E3),
+        Color(0xFFFBF8F5),
+        Color(0xFFFFEEF3),
+        Color(0xFFEDE8E3)
     )
 ): Brush {
     val transition = rememberInfiniteTransition(label = "shimmerTransition")
@@ -84,7 +82,7 @@ fun rememberShimmerBrush(
         initialValue = 0f,
         targetValue = targetValue,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1350, easing = LinearEasing),
+            animation = tween(durationMillis = 1300, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shimmerTranslate"
@@ -97,9 +95,17 @@ fun rememberShimmerBrush(
 }
 
 /**
- * High-fidelity Skeleton Loading Screen shown on cold start to eliminate any white screen / flash.
- * Renders Mera Thikaana's signature top header, stories carousel, category pills, feed post cards,
- * and bottom dock placeholders with a polished shimmering pulse.
+ * Pixel-perfect opening skeleton screen that exactly mirrors the user's Vibes / Feed UI:
+ * 1. Top bar: Glowing dot + "Mera Thikaana" gradient title + (Music, Notification, Friends) icons.
+ * 2. Segmented Pill Tab Bar: "Explore" (active purple pill) vs "Following".
+ * 3. Feed Post Cards:
+ *    - Story-ring avatar + "raiprashant" + "Follow" pill + Red pin location ("Bhusur Treeway").
+ *    - Shimmering hero photo (aspect ratio ~0.95) with top story progress line and "1/2" badge.
+ *    - Action icons: Heart, Comment, Paper-plane share, Bookmark.
+ *    - "2 likes" and full caption.
+ * 4. Second post card peeking from the bottom.
+ * 5. Floating Voice Nav FAB with equalizer soundwave bars.
+ * 6. Floating Glassmorphism Bottom Dock: DISCOVER, VIBES (active pink), elevated '+' button, MESSAGES, PROFILE.
  */
 @Composable
 fun ThikanaSkeletonScreen(
@@ -117,223 +123,246 @@ fun ThikanaSkeletonScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
         ) {
-            // 1. Top Header Bar Skeleton
-            SkeletonHeaderBar(shimmerBrush = shimmerBrush)
+            // 1. Top Header Bar
+            SkeletonHeaderBar()
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // 2. Segmented Pill Tab Row: Explore | Following
+            SkeletonSegmentedTabRow()
 
-            // 2. Stories Tray Skeleton
-            SkeletonStoriesRow(shimmerBrush = shimmerBrush)
+            // 3. Scrollable Feed Posts
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Spacer(modifier = Modifier.height(6.dp))
 
-            Spacer(modifier = Modifier.height(14.dp))
+                // Post 1 (Main card in screenshot)
+                SkeletonFeedCard(
+                    username = "raiprashant",
+                    location = "Bhusur Treeway",
+                    distance = "12429.2 km away",
+                    likes = "2 likes",
+                    caption = "Just added Bhusur Treeway to the map!",
+                    imageCountBadge = "1/2",
+                    shimmerBrush = shimmerBrush
+                )
 
-            // 3. Category Filter Chips Skeleton
-            SkeletonCategoryChipsRow(shimmerBrush = shimmerBrush)
+                Spacer(modifier = Modifier.height(20.dp))
 
-            Spacer(modifier = Modifier.height(14.dp))
+                // Post 2 (Peeking at bottom of screenshot)
+                SkeletonFeedCard(
+                    username = "raiprashant",
+                    location = "Getalsud Dam - View Point",
+                    distance = "12433.3 km away",
+                    likes = "5 likes",
+                    caption = "Sunday road trip with friends to Getalsud Dam!",
+                    imageCountBadge = null,
+                    shimmerBrush = shimmerBrush,
+                    isSecondPost = true
+                )
 
-            // 4. Feed Place Cards Skeleton
-            SkeletonFeedCard(shimmerBrush = shimmerBrush, isFirst = true)
-            Spacer(modifier = Modifier.height(16.dp))
-            SkeletonFeedCard(shimmerBrush = shimmerBrush, isFirst = false)
-
-            // Spacing to clear bottom dock
-            Spacer(modifier = Modifier.height(100.dp + navBarBottomInset))
+                // Bottom clearance for floating Voice FAB and Bottom Dock
+                Spacer(modifier = Modifier.height(110.dp + navBarBottomInset))
+            }
         }
 
-        // 5. Fixed Bottom Navigation Dock Skeleton
+        // 4. Floating Voice Nav FAB (soundwave icon above dock on right)
+        FloatingVoiceFab(
+            navBarBottomInset = navBarBottomInset,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
+
+        // 5. Floating Glassmorphism Bottom Dock
         SkeletonBottomDock(
-            shimmerBrush = shimmerBrush,
             navBarBottomInset = navBarBottomInset,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
 
+/**
+ * Top Header Bar matching exact screenshot:
+ * Glowing dot + "Mera Thikaana" gradient title + 3 action buttons (Music note, Bell, Friends).
+ */
 @Composable
 private fun SkeletonHeaderBar(
-    shimmerBrush: Brush,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .height(52.dp)
+            .padding(horizontal = 18.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Brand logo & title
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.app_icon),
-                contentDescription = "Mera Thikaana Logo",
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-            )
-            Column {
-                Text(
-                    text = "Mera Thikaana",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = ThikanaViolet
-                )
-                Box(
-                    modifier = Modifier
-                        .width(55.dp)
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(shimmerBrush)
-                )
-            }
-        }
-
-        // Header Actions Placeholder
+        // Left: Glowing dot + "Mera Thikaana" gradient brand text
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Search capsule
+            // Glowing gradient brand dot
             Box(
                 modifier = Modifier
-                    .width(100.dp)
-                    .height(34.dp)
-                    .clip(RoundedCornerShape(17.dp))
-                    .background(shimmerBrush)
-                    .padding(horizontal = 10.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = Color(0xFFA89F95),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(45.dp)
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.White.copy(alpha = 0.5f))
-                    )
-                }
-            }
-
-            // Notification icon circle
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
+                    .size(8.dp)
                     .clip(CircleShape)
-                    .background(shimmerBrush),
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFFFF3B5C), Color(0xFFFFB020))
+                        )
+                    )
+            )
+
+            // "Mera Thikaana" with signature warm gradient
+            Text(
+                text = "Mera Thikaana",
+                style = TextStyle(
+                    brush = Brush.linearGradient(
+                        listOf(
+                            Color(0xFFFF5252),
+                            Color(0xFFFF4081),
+                            Color(0xFF7C4DFF),
+                            Color(0xFF536DFE)
+                        )
+                    ),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
+                )
+            )
+        }
+
+        // Right: 3 header action buttons
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // 1. Music note
+            Icon(
+                painter = painterResource(id = R.drawable.ic_top_music),
+                contentDescription = "Music",
+                tint = Color(0xFF7C4DFF),
+                modifier = Modifier.size(20.dp)
+            )
+
+            // 2. Notification bell
+            Icon(
+                imageVector = Icons.Default.NotificationsNone,
+                contentDescription = "Notifications",
+                tint = Color(0xFF7C4DFF),
+                modifier = Modifier.size(21.dp)
+            )
+
+            // 3. Friends / Community
+            Icon(
+                painter = painterResource(id = R.drawable.ic_top_friends),
+                contentDescription = "Friends",
+                tint = Color(0xFF7C4DFF),
+                modifier = Modifier.size(21.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Segmented Pill Tab Bar: "Explore" (active purple pill) vs "Following" (muted).
+ */
+@Composable
+private fun SkeletonSegmentedTabRow(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .height(42.dp)
+            .clip(RoundedCornerShape(21.dp))
+            .background(Color(0xFFF3EDF5))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // "Explore" active pill
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(21.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF6C2BD9), Color(0xFF4338CA))
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsNone,
-                    contentDescription = null,
-                    tint = Color(0xFFA89F95),
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = "Explore",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.5.sp
+                )
+            }
+
+            // "Following" inactive tab
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Following",
+                    color = Color(0xFF8E8E93),
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.5.sp
                 )
             }
         }
     }
 }
 
+/**
+ * Feed Post Card matching exact post in user's UI.
+ */
 @Composable
-private fun SkeletonStoriesRow(
+private fun SkeletonFeedCard(
+    username: String,
+    location: String,
+    distance: String,
+    likes: String,
+    caption: String,
+    imageCountBadge: String?,
     shimmerBrush: Brush,
+    isSecondPost: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
-        // 1. "Your Thikana" Story Item
-        item {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+        // User Info Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Box(
-                    modifier = Modifier.size(64.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(62.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(ThikanaPink.copy(alpha = 0.5f), ThikanaViolet.copy(alpha = 0.5f))
-                                )
-                            )
-                            .padding(2.5.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(shimmerBrush)
-                        )
-                    }
-                    // Plus badge
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(ThikanaPink)
-                            .border(1.5.dp, Color.White, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(13.dp)
-                        )
-                    }
-                }
+                // Circular Avatar with Instagram Story Gradient border
                 Box(
                     modifier = Modifier
-                        .width(46.dp)
-                        .height(9.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(shimmerBrush)
-                )
-            }
-        }
-
-        // 2-6. Other stories items
-        items(5) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(62.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    Color(0xFFFF5280).copy(alpha = 0.45f),
-                                    Color(0xFF8A2BE2).copy(alpha = 0.45f),
-                                    Color(0xFFFFB020).copy(alpha = 0.45f)
-                                )
-                            )
-                        )
-                        .padding(2.5.dp)
+                        .border(2.dp, InstagramStoryGradient, CircleShape)
+                        .padding(3.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -342,385 +371,353 @@ private fun SkeletonStoriesRow(
                             .background(shimmerBrush)
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(9.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(shimmerBrush)
-                )
-            }
-        }
-    }
-}
 
-@Composable
-private fun SkeletonCategoryChipsRow(
-    shimmerBrush: Brush,
-    modifier: Modifier = Modifier
-) {
-    val chipWidths = listOf(56.dp, 72.dp, 84.dp, 68.dp, 76.dp, 64.dp)
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(chipWidths.size) { index ->
-            if (index == 0) {
-                Box(
-                    modifier = Modifier
-                        .width(chipWidths[index])
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(ThikanaPink.copy(alpha = 0.2f))
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .width(chipWidths[index])
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(shimmerBrush)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SkeletonFeedCard(
-    shimmerBrush: Brush,
-    isFirst: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White,
-        shadowElevation = 2.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, ThikanaLine.copy(alpha = 0.6f))
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp)
-        ) {
-            // User header row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Name & Location
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    // User Avatar
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(shimmerBrush)
-                    )
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // User Name bar
+                        Text(
+                            text = username,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E1E1E)
+                        )
+
+                        // "Follow" Pill
                         Box(
                             modifier = Modifier
-                                .width(if (isFirst) 120.dp else 95.dp)
-                                .height(12.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(shimmerBrush)
-                        )
-                        // Location & Time bar
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, Color(0xFF9E86C8), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 10.dp, vertical = 2.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = ThikanaPink.copy(alpha = 0.4f),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .width(if (isFirst) 140.dp else 110.dp)
-                                    .height(9.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(shimmerBrush)
+                            Text(
+                                text = "Follow",
+                                color = Color(0xFF7C5CBF),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
+
+                    // Red Location Pin + Place Name + Distance
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFFFF3B5C),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = location,
+                            color = Color(0xFFFF3B5C),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = distance,
+                            color = Color(0xFF8E8E93),
+                            fontSize = 11.sp
+                        )
+                    }
                 }
-
-                // Three dots placeholder
-                Box(
-                    modifier = Modifier
-                        .width(18.dp)
-                        .height(18.dp)
-                        .clip(CircleShape)
-                        .background(shimmerBrush)
-                )
             }
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-            // Hero Media Container
-            Box(
+        // Hero Media Container with Shimmer
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(if (isSecondPost) 1.15f else 0.96f)
+                .clip(RoundedCornerShape(20.dp))
+                .background(shimmerBrush)
+        ) {
+            // Story Progress Segment Line & "1/2" Multi-photo Badge
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(if (isFirst) 1.25f else 1.35f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(shimmerBrush),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Subtle Center Placeholder Icon
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.35f),
-                    modifier = Modifier.size(48.dp)
-                )
-
-                // Category pill overlay at top left
+                // Segmented story bar line
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(10.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(alpha = 0.25f))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
+                        .weight(1f)
+                        .height(2.5.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.85f))
+                )
+
+                if (imageCountBadge != null) {
+                    Spacer(modifier = Modifier.width(12.dp))
                     Box(
                         modifier = Modifier
-                            .width(55.dp)
-                            .height(10.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.White.copy(alpha = 0.65f))
-                    )
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = imageCountBadge,
+                            color = Color.White,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-            // Action Icons Row (Like, Comment, Share, Bookmark)
+        // Action Icons Row: Heart, Comment, Send / Bookmark
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Heart
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            tint = Color(0xFFA89F95),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(22.dp)
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(shimmerBrush)
-                        )
-                    }
-
-                    // Comment
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChatBubbleOutline,
-                            contentDescription = null,
-                            tint = Color(0xFFA89F95),
-                            modifier = Modifier.size(19.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(18.dp)
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(shimmerBrush)
-                        )
-                    }
-
-                    // Share
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = null,
-                        tint = Color(0xFFA89F95),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Bookmark
+                // Heart / Like
                 Icon(
-                    imageVector = Icons.Default.BookmarkBorder,
-                    contentDescription = null,
-                    tint = Color(0xFFA89F95),
+                    imageVector = Icons.Default.FavoriteBorder,
+                    contentDescription = "Like",
+                    tint = Color(0xFF262626),
+                    modifier = Modifier.size(23.dp)
+                )
+
+                // Comment
+                Icon(
+                    imageVector = Icons.Default.ChatBubbleOutline,
+                    contentDescription = "Comment",
+                    tint = Color(0xFF262626),
+                    modifier = Modifier.size(21.dp)
+                )
+
+                // Send / Paper Plane
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_feed_send),
+                    contentDescription = "Share",
+                    tint = Color(0xFF262626),
                     modifier = Modifier.size(20.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // Bookmark
+            Icon(
+                imageVector = Icons.Default.BookmarkBorder,
+                contentDescription = "Save",
+                tint = Color(0xFF262626),
+                modifier = Modifier.size(23.dp)
+            )
+        }
 
-            // Caption placeholder lines
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(11.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(shimmerBrush)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.55f)
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(shimmerBrush)
-            )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Likes Count
+        Text(
+            text = likes,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1E1E1E)
+        )
+
+        Spacer(modifier = Modifier.height(3.dp))
+
+        // Caption: username bold + caption text
+        Text(
+            text = buildAnnotatedString {
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))) {
+                    append(username)
+                    append(" ")
+                }
+                withStyle(style = SpanStyle(color = Color(0xFF1E1E1E))) {
+                    append(caption)
+                }
+            },
+            fontSize = 12.sp,
+            lineHeight = 16.sp
+        )
+    }
+}
+
+/**
+ * Floating Voice Nav FAB in bottom right above dock with pink/purple gradient and equalizer soundwave bars.
+ */
+@Composable
+private fun FloatingVoiceFab(
+    navBarBottomInset: Dp,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .padding(end = 16.dp, bottom = 78.dp + navBarBottomInset)
+            .size(44.dp)
+            .shadow(6.dp, CircleShape)
+            .clip(CircleShape)
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFFFF3B80), Color(0xFFAA47BC))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        // White soundwave equalizer bars matching screenshot icon
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.5.dp)
+        ) {
+            val barHeights = listOf(7.dp, 16.dp, 12.dp, 8.dp)
+            barHeights.forEach { height ->
+                Box(
+                    modifier = Modifier
+                        .width(2.5.dp)
+                        .height(height)
+                        .clip(RoundedCornerShape(1.5.dp))
+                        .background(Color.White)
+                )
+            }
         }
     }
 }
 
+/**
+ * Floating Glassmorphism Bottom Dock:
+ * DISCOVER, VIBES (Active), Central '+' elevated button, MESSAGES, PROFILE.
+ */
 @Composable
 private fun SkeletonBottomDock(
-    shimmerBrush: Brush,
     navBarBottomInset: Dp,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(12.dp),
-        color = Color.White.copy(alpha = 0.97f),
-        border = androidx.compose.foundation.BorderStroke(0.75.dp, ThikanaLine)
+            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp + navBarBottomInset)
+            .shadow(10.dp, RoundedCornerShape(26.dp)),
+        shape = RoundedCornerShape(26.dp),
+        color = Color.White.copy(alpha = 0.94f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ThikanaLine)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                .height(54.dp)
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceAround
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+            // 1. Discover
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                // 1. Discover / Map
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Explore,
-                        contentDescription = null,
-                        tint = ThikanaViolet.copy(alpha = 0.5f),
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(28.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(shimmerBrush)
-                    )
-                }
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_nav_discover),
+                    contentDescription = "Discover",
+                    tint = Color(0xFF8E8E93),
+                    modifier = Modifier.size(19.dp)
+                )
+                Text(
+                    text = "DISCOVER",
+                    fontSize = 8.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8E8E93)
+                )
+            }
 
-                // 2. Vibes / Feed
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(shimmerBrush)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(24.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(shimmerBrush)
-                    )
-                }
+            // 2. Vibes (Active Tab!)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_nav_vibes),
+                    contentDescription = "Vibes",
+                    tint = ThikanaPink,
+                    modifier = Modifier.size(19.dp)
+                )
+                Text(
+                    text = "VIBES",
+                    fontSize = 8.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = ThikanaPink
+                )
+            }
 
-                // 3. Central Create "+" Button with signature gradient
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(ThikanaPink, ThikanaViolet)
-                            )
+            // 3. Central Create '+' Button elevated above dock
+            Box(
+                modifier = Modifier
+                    .offset(y = (-14).dp)
+                    .size(46.dp)
+                    .shadow(8.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFFFF2A85), Color(0xFF8A2BE2))
                         )
-                        .shadow(6.dp, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create",
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Create",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
 
-                // 4. Messages
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChatBubbleOutline,
-                        contentDescription = null,
-                        tint = Color(0xFFA89F95),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(26.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(shimmerBrush)
-                    )
-                }
+            // 4. Messages
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_nav_messages),
+                    contentDescription = "Messages",
+                    tint = Color(0xFF8E8E93),
+                    modifier = Modifier.size(19.dp)
+                )
+                Text(
+                    text = "MESSAGES",
+                    fontSize = 8.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8E8E93)
+                )
+            }
 
-                // 5. Profile
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonOutline,
-                        contentDescription = null,
-                        tint = Color(0xFFA89F95),
-                        modifier = Modifier.size(21.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(24.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(shimmerBrush)
-                    )
-                }
+            // 5. Profile
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_nav_profile),
+                    contentDescription = "Profile",
+                    tint = Color(0xFF8E8E93),
+                    modifier = Modifier.size(19.dp)
+                )
+                Text(
+                    text = "PROFILE",
+                    fontSize = 8.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF8E8E93)
+                )
             }
         }
     }
