@@ -1,0 +1,6 @@
+{
+  "name": "Mera Thikaana",
+  "description": "Discover Ranchi's waterfalls, viewpoints, food spots and hidden gems — Bhukkad or Ghumakkad, find your thikana.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

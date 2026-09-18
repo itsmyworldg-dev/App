@@ -1,0 +1,6 @@
+{
+  "name": "Story Editor",
+  "description": "Trending Instagram story and post editor with filters, AI prompts, background removal, collage maker, music, and integrated camera.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
