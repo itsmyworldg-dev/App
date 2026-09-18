@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Filter
 import androidx.compose.material.icons.filled.IntegrationInstructions
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TextFields
@@ -94,10 +95,13 @@ enum class EditorTab(val label: String, val icon: androidx.compose.ui.graphics.v
 fun StoryEditorScreen(
     initialBitmap: Bitmap,
     onBack: () -> Unit,
-    onDone: ((Uri) -> Unit)? = null
+    onDone: ((Uri) -> Unit)? = null,
+    onShareToThikana: ((Uri, String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    var showShareToThikanaDialog by remember { mutableStateOf(false) }
 
     var activeBitmap by remember { mutableStateOf(initialBitmap) }
     var cutoutBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -254,6 +258,28 @@ fun StoryEditorScreen(
                         ) {
                             Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(14.dp))
                             Text("Share", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Share in Thikanas Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    listOf(Color(0xFFFF2A85), Color(0xFF8A2BE2))
+                                )
+                            )
+                            .clickable { showShareToThikanaDialog = true }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .testTag("share_in_thikanas_button")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.LocationOn, contentDescription = "Share in Thikanas", tint = Color.White, modifier = Modifier.size(14.dp))
+                            Text("Share in Thikanas", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -520,6 +546,32 @@ fun StoryEditorScreen(
         if (showIntegrationGuide) {
             IntegrationGuideDialog(
                 onDismiss = { showIntegrationGuide = false }
+            )
+        }
+
+        // Share in Thikanas Dialog
+        if (showShareToThikanaDialog) {
+            com.example.editor.ShareToThikanaDialog(
+                onDismissRequest = { showShareToThikanaDialog = false },
+                onSelectDestination = { destination ->
+                    showShareToThikanaDialog = false
+                    coroutineScope.launch {
+                        isSaving = true
+                        val uri = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            ImageProcessingUtils.saveBitmapToCache(context, activeBitmap, "thikana_spot_${System.currentTimeMillis()}")
+                        }
+                        isSaving = false
+                        if (uri != null) {
+                            if (onShareToThikana != null) {
+                                onShareToThikana(uri, destination)
+                            } else if (onDone != null) {
+                                onDone(uri)
+                            }
+                        } else {
+                            Toast.makeText(context, "Failed to prepare image", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             )
         }
     }

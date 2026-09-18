@@ -137,6 +137,7 @@ class MainActivity : ComponentActivity() {
     private val isUploadChooserOpenState = mutableStateOf(false)
     private val loadingProgressState = mutableIntStateOf(0)
     private val isLoadingState = mutableStateOf(true)
+    private val isInitialLoadCompletedState = mutableStateOf(false)
     private val errorMessageState = mutableStateOf<String?>(null)
     private val webViewInstanceState = mutableStateOf<WebView?>(null)
 
@@ -629,6 +630,7 @@ class MainActivity : ComponentActivity() {
                         webView = activeWebView,
                         loadingProgress = loadingProgressState.intValue,
                         isLoading = isLoadingState.value,
+                        isInitialLoading = !isInitialLoadCompletedState.value && errorMessageState.value == null,
                         errorMessage = errorMessageState.value,
                         currentTab = currentTabState.value,
                         showBottomNav = isBottomNavVisibleState.value && !isNavActive,
@@ -658,6 +660,7 @@ class MainActivity : ComponentActivity() {
                         onRetry = {
                             errorMessageState.value = null
                             isLoadingState.value = true
+                            isInitialLoadCompletedState.value = false
                             try {
                                 if (::webView.isInitialized) {
                                     webView.reload()
@@ -831,6 +834,10 @@ class MainActivity : ComponentActivity() {
                                     Toast.makeText(this@MainActivity, "Photo ready! Attaching to spot...", Toast.LENGTH_SHORT).show()
                                     ImageSaveUtil.launchShareIntent(this@MainActivity, createdUri)
                                 }
+                            },
+                            onShareToThikana = { createdUri, destination ->
+                                isStoryMakerOpenState.value = false
+                                sharePhotoToThikana(createdUri, destination)
                             }
                         )
                     }
@@ -874,6 +881,10 @@ class MainActivity : ComponentActivity() {
                                     Toast.makeText(this@MainActivity, "Story ready! Opening share...", Toast.LENGTH_SHORT).show()
                                     ImageSaveUtil.launchShareIntent(this@MainActivity, createdUri)
                                 }
+                            },
+                            onShareToThikana = { createdUri, destination ->
+                                isNativeEditorOpenState.value = false
+                                sharePhotoToThikana(createdUri, destination)
                             }
                         )
                     }
@@ -883,6 +894,53 @@ class MainActivity : ComponentActivity() {
 
         // Handle Deep Links if launched with an intent
         handleIntent(intent)
+
+        // Safety fallback: Ensure skeleton dissolves even if network hangs or page takes unusually long
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(8500)
+            if (!isInitialLoadCompletedState.value) {
+                isInitialLoadCompletedState.value = true
+            }
+        }
+    }
+
+    fun sharePhotoToThikana(createdUri: Uri, destination: String) {
+        if (filePathCallback != null) {
+            filePathCallback?.onReceiveValue(arrayOf(createdUri))
+            filePathCallback = null
+        }
+        val targetMode = if (destination == "gem" || destination == "addgem") "addgem" else "tagspot"
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = contentResolver.openInputStream(createdUri)
+                val bytes = inputStream?.readBytes()
+                inputStream?.close()
+                if (bytes != null) {
+                    val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    withContext(Dispatchers.Main) {
+                        if (::webView.isInitialized) {
+                            val js = """
+                                (function() {
+                                    if (typeof window.attachPhotoToSpot === 'function') {
+                                        window.attachPhotoToSpot('$targetMode', '$base64', 'image/jpeg', 'spot_photo_${System.currentTimeMillis()}.jpg');
+                                    } else {
+                                        if (typeof showView === 'function') showView('$targetMode');
+                                    }
+                                })();
+                            """.trimIndent()
+                            webView.evaluateJavascript(js, null)
+                            Toast.makeText(
+                                this@MainActivity,
+                                if (targetMode == "addgem") "Attaching photo to Hidden Gem..." else "Attaching photo to Tag a Spot...",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send photo to WebView spot", e)
+            }
+        }
     }
 
     fun navigateToTab(selectedTab: ThikanaTab) {
@@ -1610,7 +1668,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(android.graphics.Color.WHITE)
+            setBackgroundColor(android.graphics.Color.parseColor("#FFF9F4"))
             WebView.setWebContentsDebuggingEnabled(true)
 
             isVerticalScrollBarEnabled = false
@@ -1707,6 +1765,11 @@ class MainActivity : ComponentActivity() {
                     updateDockVisibility(url)
                     isPageFinishedLoading = true
 
+                    // Smooth buffer for web frame compositing before dissolving skeleton
+                    window.decorView.postDelayed({
+                        isInitialLoadCompletedState.value = true
+                    }, 350)
+
                     // Re-push the last known dock height: a (re)loaded document
                     // has no memory of the --native-dock-height inline style
                     // set on the previous document, so without this the web
@@ -1745,6 +1808,7 @@ class MainActivity : ComponentActivity() {
                 onReceivedLoadError = { errorDesc ->
                     isLoadingState.value = false
                     errorMessageState.value = errorDesc
+                    isInitialLoadCompletedState.value = true
                 },
                 onUrlChanged = { url ->
                     updateDockVisibility(url)

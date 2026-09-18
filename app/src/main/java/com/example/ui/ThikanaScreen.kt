@@ -3,6 +3,7 @@ package com.example.ui
 import android.webkit.WebView
 import com.example.MainActivity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -48,6 +49,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.R
 import com.example.ui.theme.ThikanaPink
 import com.example.ui.theme.ThikanaViolet
+import com.example.ui.theme.ThikanaPaper
+import com.example.ui.skeleton.ThikanaSkeletonScreen
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -84,6 +87,7 @@ fun ThikanaScreen(
     onToggleNavMute: () -> Unit = {},
     onOpenNativeCamera: (String) -> Unit = {},
     navBarBottomInset: Dp = 0.dp,
+    isInitialLoading: Boolean = false,
     // Kept for the CSS var plumbing described above (MainActivity pushes whatever
     // value comes through here into --native-dock-height). Always called with 0.dp
     // now that there's no native dock to measure.
@@ -103,7 +107,7 @@ fun ThikanaScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(ThikanaPaper)
     ) {
         // Main Hybrid WebView - fills full container, no extra bottom gap
         key(webView) {
@@ -221,38 +225,16 @@ fun ThikanaScreen(
             )
         }
 
-        // Elegant Branded Loading Indicator for Initial Cold Start (0% or initial fetch)
+        // Shimmering Skeleton Loading for Initial Cold Start (eliminates white screen)
         AnimatedVisibility(
-            visible = isLoading && loadingProgress < 35,
+            visible = isInitialLoading,
             enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.Center)
+            exit = fadeOut(animationSpec = tween(durationMillis = 400)),
+            modifier = Modifier.fillMaxSize()
         ) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.96f),
-                shadowElevation = 8.dp,
-                modifier = Modifier.padding(24.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.app_icon),
-                        contentDescription = "Mera Thikaana Logo",
-                        modifier = Modifier.size(72.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.5.dp,
-                        color = ThikanaPink
-                    )
-                }
-            }
+            ThikanaSkeletonScreen(
+                navBarBottomInset = navBarBottomInset
+            )
         }
 
         // Offline / Error Notice Overlay

@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -45,16 +45,18 @@ jobs:
           if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
             echo "Restoring debug.keystore from debug.keystore.base64..."
             base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f debug.keystore ]; then
+            echo "Generating fallback debug.keystore..."
+            keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
           fi
 
       - name: Setup environment variables (.env)
         run: |
+          if [ ! -f .env.example ]; then
+            echo "GEMINI_API_KEY=" > .env.example
+          fi
           if [ ! -f .env ]; then
-            if [ -f .env.example ]; then
-              cp .env.example .env
-            else
-              touch .env
-            fi
+            cp .env.example .env
           fi
           # If repository secret GEMINI_API_KEY is configured, inject it into .env
           if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then

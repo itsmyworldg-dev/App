@@ -539,12 +539,45 @@ class ThikanaWebViewClient(
                     }
                 }, true);
 
-                // 7. Observer to sync upload chooser sheet state with native Compose plus button
+                // 7. Observer to sync upload chooser sheet state with native Compose plus button and inject dynamic camera button
+                var ensureChooserCameraBtn = function() {
+                    var chooser = document.getElementById('uploadChooserOverlay');
+                    if (!chooser) return;
+                    var container = chooser.querySelector('.upload-choice') || chooser.querySelector('#uploadChooserBody') || chooser.querySelector('.detail');
+                    if (container && !document.getElementById('uploadChooserCameraBtn')) {
+                        var btn = document.createElement('div');
+                        btn.id = 'uploadChooserCameraBtn';
+                        btn.className = 'upload-choice-camera-btn';
+                        btn.title = 'Camera & Photo Editor';
+                        btn.setAttribute('role', 'button');
+                        btn.setAttribute('aria-label', 'Open Camera');
+                        btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
+                        btn.addEventListener('click', function(e) {
+                            if (e) { e.preventDefault(); e.stopPropagation(); }
+                            if (typeof closeUploadChooser === 'function') {
+                                closeUploadChooser();
+                            } else {
+                                chooser.classList.remove('active');
+                            }
+                            if (window.AndroidNativeAuth && window.AndroidNativeAuth.onUploadChooserVisibilityChanged) {
+                                window.AndroidNativeAuth.onUploadChooserVisibilityChanged(false);
+                            }
+                            if (window.AndroidNativeAuth && window.AndroidNativeAuth.openNativeCamera) {
+                                window.AndroidNativeAuth.openNativeCamera('post');
+                            }
+                        }, true);
+                        container.appendChild(btn);
+                    }
+                };
+
                 var setupChooserObserver = function() {
                     var chooser = document.getElementById('uploadChooserOverlay');
                     if (chooser && window.MutationObserver) {
                         var notifyState = function() {
                             var isActive = chooser.classList.contains('active');
+                            if (isActive) {
+                                ensureChooserCameraBtn();
+                            }
                             if (window.AndroidNativeAuth && window.AndroidNativeAuth.onUploadChooserVisibilityChanged) {
                                 window.AndroidNativeAuth.onUploadChooserVisibilityChanged(isActive);
                             }
@@ -561,6 +594,43 @@ class ThikanaWebViewClient(
                 } else {
                     setupChooserObserver();
                 }
+
+                // Global helper to attach an edited photo directly to Tag a Spot or Add a Hidden Gem
+                window.attachPhotoToSpot = function(targetMode, base64Data, mimeType, fileName) {
+                    try {
+                        var byteCharacters = atob(base64Data);
+                        var byteNumbers = new Array(byteCharacters.length);
+                        for (var i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        var byteArray = new Uint8Array(byteNumbers);
+                        var blob = new Blob([byteArray], { type: mimeType || 'image/jpeg' });
+                        var file = new File([blob], fileName || 'spot_photo.jpg', { type: mimeType || 'image/jpeg' });
+
+                        var viewName = (targetMode === 'gem' || targetMode === 'addgem') ? 'addgem' : 'tagspot';
+                        if (typeof showView === 'function') {
+                            showView(viewName);
+                        }
+                        setTimeout(function() {
+                            if (viewName === 'tagspot') {
+                                if (typeof tagMediaItems !== 'undefined') {
+                                    tagMediaItems.push({ type: 'photo', file: file });
+                                    if (typeof renderTagMedia === 'function') renderTagMedia();
+                                }
+                            } else {
+                                if (typeof gemMediaItems !== 'undefined') {
+                                    gemMediaItems.push({ type: 'photo', file: file });
+                                    if (typeof renderGemMedia === 'function') renderGemMedia();
+                                }
+                            }
+                            if (typeof showToast === 'function') {
+                                showToast(viewName === 'tagspot' ? 'Photo attached to Tag a spot! 📸' : 'Photo attached to Hidden Gem! 💎', 3000);
+                            }
+                        }, 400);
+                    } catch(err) {
+                        console.error('attachPhotoToSpot error:', err);
+                    }
+                };
 
                 // Close/hide website's general upload chooser immediately when opening music file picker
                 window.openMusicFilePicker = function() {
@@ -1512,6 +1582,45 @@ class ThikanaWebViewClient(
             #uploadChooserOverlay .detail,
             #uploadChooserBody {
                 padding-bottom: calc(var(--native-dock-height, 84px) + 16px) !important;
+            }
+            /* Dynamic circular camera button inside upload chooser */
+            #uploadChooserBody .upload-choice {
+                position: relative !important;
+            }
+            .upload-choice-camera-btn {
+                position: absolute !important;
+                top: 4px !important;
+                right: 4px !important;
+                width: 46px !important;
+                height: 46px !important;
+                border-radius: 50% !important;
+                background: linear-gradient(135deg, #FF2A85 0%, #8A2BE2 100%) !important;
+                color: #FFFFFF !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer !important;
+                box-shadow: 0 4px 14px rgba(255, 42, 133, 0.45) !important;
+                z-index: 100 !important;
+                transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s !important;
+                animation: cameraDynamicPulse 2.4s infinite ease-in-out !important;
+            }
+            .upload-choice-camera-btn:active {
+                transform: scale(0.90) !important;
+            }
+            @keyframes cameraDynamicPulse {
+                0% {
+                    transform: scale(1);
+                    box-shadow: 0 4px 14px rgba(255, 42, 133, 0.4), 0 0 0 0 rgba(255, 42, 133, 0.4);
+                }
+                50% {
+                    transform: scale(1.08);
+                    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.55), 0 0 0 6px rgba(138, 43, 226, 0);
+                }
+                100% {
+                    transform: scale(1);
+                    box-shadow: 0 4px 14px rgba(255, 42, 133, 0.4), 0 0 0 0 rgba(255, 42, 133, 0);
+                }
             }
             #shareOverlay .detail,
             #commentsOverlay .detail,

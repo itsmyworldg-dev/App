@@ -6269,9 +6269,33 @@ const MAX_GALLERY_IMAGES = 6;
 const REEL_MAX_RAW_BYTES = 45 * 1024 * 1024;
 
 /* ---------------- Upload chooser: tap "+" asks which one before opening the page ---------------- */
+function ensureUploadChooserCameraBtn(){
+  var chooser = document.getElementById('uploadChooserOverlay');
+  if(!chooser) return;
+  var container = chooser.querySelector('.upload-choice') || chooser.querySelector('#uploadChooserBody');
+  if(container && !document.getElementById('uploadChooserCameraBtn')){
+    var btn = document.createElement('div');
+    btn.id = 'uploadChooserCameraBtn';
+    btn.className = 'upload-choice-camera-btn';
+    btn.title = 'Camera & Photo Editor';
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('aria-label', 'Open Camera');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
+    btn.onclick = function(e){
+      if(e){ e.preventDefault(); e.stopPropagation(); }
+      closeUploadChooser();
+      if(window.AndroidNativeAuth && window.AndroidNativeAuth.openNativeCamera){
+        window.AndroidNativeAuth.openNativeCamera('post');
+      }
+    };
+    container.appendChild(btn);
+  }
+}
+
 function openUploadChooser(){
   document.getElementById('uploadChooserOverlay').classList.add('active');
   pushUIModal('uploadchooser');
+  ensureUploadChooserCameraBtn();
 }
 function hideUploadChooserUI(){ document.getElementById('uploadChooserOverlay').classList.remove('active'); }
 function closeUploadChooser(){ closeUIModal('uploadchooser', hideUploadChooserUI); }
@@ -6282,6 +6306,41 @@ function chooseUploadMode(mode){
   closeUploadChooser();
   setTimeout(()=>{ showView(mode === 'gem' ? 'addgem' : 'tagspot'); }, 300);
 }
+
+// Global hook to attach photo from native camera/editor directly into spot
+window.attachPhotoToSpot = function(targetMode, base64Data, mimeType, fileName){
+  try {
+    var byteCharacters = atob(base64Data);
+    var byteNumbers = new Array(byteCharacters.length);
+    for (var i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    var byteArray = new Uint8Array(byteNumbers);
+    var blob = new Blob([byteArray], { type: mimeType || 'image/jpeg' });
+    var file = new File([blob], fileName || 'spot_photo.jpg', { type: mimeType || 'image/jpeg' });
+
+    var viewName = (targetMode === 'gem' || targetMode === 'addgem') ? 'addgem' : 'tagspot';
+    if(typeof showView === 'function') showView(viewName);
+    setTimeout(function() {
+      if (viewName === 'tagspot') {
+        if (typeof tagMediaItems !== 'undefined') {
+          tagMediaItems.push({ type: 'photo', file: file });
+          if(typeof renderTagMedia === 'function') renderTagMedia();
+        }
+      } else {
+        if (typeof gemMediaItems !== 'undefined') {
+          gemMediaItems.push({ type: 'photo', file: file });
+          if(typeof renderGemMedia === 'function') renderGemMedia();
+        }
+      }
+      if (typeof showToast === 'function') {
+        showToast(viewName === 'tagspot' ? 'Photo attached to Tag a spot! 📸' : 'Photo attached to Hidden Gem! 💎', 3000);
+      }
+    }, 400);
+  } catch(err) {
+    console.error('attachPhotoToSpot error:', err);
+  }
+};
 
 /* ---------------- Shared media strip: used by both Tag a spot and Add a hidden gem ----------------
    One "+" tile picks photos and/or a video in a single go (accept accepts

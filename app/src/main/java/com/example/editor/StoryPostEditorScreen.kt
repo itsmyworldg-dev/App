@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FormatColorText
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mood
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Send
@@ -118,10 +119,13 @@ fun StoryPostEditorScreen(
     initialTemplate: CollageTemplate,
     onDismiss: () -> Unit,
     onPostCreated: (Uri) -> Unit,
+    onShareToThikana: ((Uri, String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    var showShareToThikanaDialog by remember { mutableStateOf(false) }
 
     // Mode state: Story (9:16) or Post (1:1)
     var isStoryRatio by remember { mutableStateOf(initialMode == CameraMode.STORY || initialMode == CameraMode.COLLAGE) }
@@ -247,7 +251,7 @@ fun StoryPostEditorScreen(
     }
 
     // Save or Share action
-    fun performExport(action: String) {
+    fun performExport(action: String, destination: String? = null) {
         scope.launch {
             isExporting = true
             val finalBmp = ImageSaveUtil.renderFinalBitmap(
@@ -281,6 +285,15 @@ fun StoryPostEditorScreen(
                     val cacheUri = ImageSaveUtil.saveBitmapToCache(context, finalBmp)
                     isExporting = false
                     onPostCreated(cacheUri)
+                }
+                "thikana" -> {
+                    val cacheUri = ImageSaveUtil.saveBitmapToCache(context, finalBmp)
+                    isExporting = false
+                    if (cacheUri != null && onShareToThikana != null) {
+                        onShareToThikana.invoke(cacheUri, destination ?: "tagspot")
+                    } else if (cacheUri != null) {
+                        onPostCreated(cacheUri)
+                    }
                 }
             }
         }
@@ -890,7 +903,7 @@ fun StoryPostEditorScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Final Action Buttons: Save to Gallery, Share, Post Story
+                    // Final Action Buttons: Save to Gallery, Share, Share in Thikanas
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -901,11 +914,11 @@ fun StoryPostEditorScreen(
                             onClick = { performExport("gallery") },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262626)),
                             shape = RoundedCornerShape(100.dp),
-                            modifier = Modifier.weight(0.9f)
+                            modifier = Modifier.weight(0.85f)
                         ) {
-                            Icon(Icons.Default.Download, contentDescription = "Save", tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Save", color = Color.White, fontSize = 12.sp)
+                            Icon(Icons.Default.Download, contentDescription = "Save", tint = Color.White, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Save", color = Color.White, fontSize = 11.sp)
                         }
 
                         // Share Button
@@ -913,35 +926,46 @@ fun StoryPostEditorScreen(
                             onClick = { performExport("share") },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262626)),
                             shape = RoundedCornerShape(100.dp),
-                            modifier = Modifier.weight(0.9f)
+                            modifier = Modifier.weight(0.85f)
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Share", color = Color.White, fontSize = 12.sp)
+                            Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Share", color = Color.White, fontSize = 11.sp)
                         }
 
-                        // Post Story Button (Instagram Gradient)
+                        // Share in Thikanas Button (Leads to Tag a spot or Add a spot)
                         Button(
-                            onClick = { performExport("post") },
+                            onClick = { showShareToThikanaDialog = true },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                             shape = RoundedCornerShape(100.dp),
                             modifier = Modifier
-                                .weight(1.4f)
+                                .weight(1.5f)
                                 .clip(RoundedCornerShape(100.dp))
                                 .background(
                                     Brush.linearGradient(
-                                        listOf(Color(0xFFFF3B5C), Color(0xFFFFA033))
+                                        listOf(Color(0xFFFF2A85), Color(0xFF8A2BE2))
                                     )
                                 )
-                                .testTag("post_story_btn")
+                                .testTag("share_in_thikanas_btn")
                         ) {
-                            Icon(Icons.Default.Send, contentDescription = "Post", tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.LocationOn, contentDescription = "Share in Thikanas", tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Your Story", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                            Text("Share in Thikanas", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 11.sp, maxLines = 1)
                         }
                     }
                 }
             }
+        }
+
+        // Dialog for choosing whether to Share in Thikanas via Tag a Spot or Add a Hidden Gem
+        if (showShareToThikanaDialog) {
+            ShareToThikanaDialog(
+                onDismissRequest = { showShareToThikanaDialog = false },
+                onSelectDestination = { destination ->
+                    showShareToThikanaDialog = false
+                    performExport("thikana", destination)
+                }
+            )
         }
 
         // --- GEMINI LOADING OVERLAY ---
